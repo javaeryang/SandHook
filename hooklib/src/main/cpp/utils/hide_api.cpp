@@ -12,6 +12,7 @@ extern "C" {
     void* (*jitLoad)(bool*) = nullptr;
     void* jitCompilerHandle = nullptr;
     bool (*jitCompileMethod)(void*, void*, void*, bool) = nullptr;
+    bool (*jitCompileMethodQ)(void*, void*, void*, bool, bool) = nullptr;
 
     void (*innerSuspendVM)() = nullptr;
     void (*innerResumeVM)() = nullptr;
@@ -31,7 +32,13 @@ extern "C" {
             } else {
                 jit_lib = fake_dlopen("/system/lib/libart-compiler.so", RTLD_NOW);
             }
-            jitCompileMethod = (bool (*)(void *, void *, void *, bool)) fake_dlsym(jit_lib, "jit_compile_method");
+            if (SDK_INT >= ANDROID_Q) {
+                jitCompileMethodQ = static_cast<bool (*)(void *, void *, void *, bool,
+                                                         bool)>(fake_dlsym(jit_lib, "jit_compile_method"));
+            } else {
+                jitCompileMethod = (bool (*)(void *, void *, void *, bool)) fake_dlsym(jit_lib,
+                                                                                       "jit_compile_method");
+            }
             jitLoad = reinterpret_cast<void* (*)(bool*)>(fake_dlsym(jit_lib, "jit_load"));
             bool generate_debug_info = false;
             jitCompilerHandle = (jitLoad)(&generate_debug_info);
@@ -82,10 +89,17 @@ extern "C" {
     }
 
     bool compileMethod(void* artMethod, void* thread) {
-        if (jitCompileMethod == nullptr) {
-            return false;
+        if (SDK_INT >= ANDROID_Q) {
+            if (jitCompileMethodQ == nullptr) {
+                return false;
+            }
+            return jitCompileMethodQ(jitCompilerHandle, artMethod, thread, false, false);
+        } else {
+            if (jitCompileMethod == nullptr) {
+                return false;
+            }
+            return jitCompileMethod(jitCompilerHandle, artMethod, thread, false);
         }
-        return jitCompileMethod(jitCompilerHandle, artMethod, thread, false);
     }
 
     void suspendVM() {

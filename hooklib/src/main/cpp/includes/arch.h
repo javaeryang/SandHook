@@ -42,5 +42,6 @@ static void clearCacheArm32(char* begin, char *end)
 #define ANDROID_O 26
 #define ANDROID_O2 27
 #define ANDROID_P 28
+#define ANDROID_Q 29
 
 #endif //SANDHOOK_ARCH_H
