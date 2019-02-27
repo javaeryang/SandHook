@@ -22,6 +22,8 @@ extern "C" {
     art::jit::JitCompiler** globalJitCompileHandlerAddr = nullptr;
 
 
+    void* (*origin_jit_update_options)(bool*) = nullptr;
+
 
     void initHideApi(JNIEnv* env) {
         //init compile
@@ -35,6 +37,7 @@ extern "C" {
             if (SDK_INT >= ANDROID_Q) {
                 jitCompileMethodQ = static_cast<bool (*)(void *, void *, void *, bool,
                                                          bool)>(fake_dlsym(jit_lib, "jit_compile_method"));
+                origin_jit_update_options = static_cast<void *(*)(bool *)>(fake_dlsym(jit_lib, "jit_update_options"));
             } else {
                 jitCompileMethod = (bool (*)(void *, void *, void *, bool)) fake_dlsym(jit_lib,
                                                                                        "jit_compile_method");
@@ -173,6 +176,12 @@ extern "C" {
         } else {
             return false;
         }
+    }
+
+
+    //to replace jit_update_option
+    void fake_jit_update_options(void* handle) {
+        return;
     }
 
 }
