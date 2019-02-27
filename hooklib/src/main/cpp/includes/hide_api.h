@@ -31,6 +31,8 @@ extern "C" {
 
     bool disableJitInline(art::CompilerOptions* compilerOptions);
 
+    bool replaceUpdateCompilerOptionsQ();
+
 }
 
 #endif //SANDHOOK_HIDE_API_H

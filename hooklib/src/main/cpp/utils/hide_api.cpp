@@ -3,6 +3,7 @@
 //
 #include "../includes/hide_api.h"
 #include "../includes/arch.h"
+#include "../includes/log.h"
 
 extern int SDK_INT;
 
@@ -22,7 +23,7 @@ extern "C" {
     art::jit::JitCompiler** globalJitCompileHandlerAddr = nullptr;
 
 
-    void* (*origin_jit_update_options)(bool*) = nullptr;
+    void (**origin_jit_update_options)(void *) = nullptr;
 
 
     void initHideApi(JNIEnv* env) {
@@ -35,9 +36,8 @@ extern "C" {
                 jit_lib = fake_dlopen("/system/lib/libart-compiler.so", RTLD_NOW);
             }
             if (SDK_INT >= ANDROID_Q) {
-                jitCompileMethodQ = static_cast<bool (*)(void *, void *, void *, bool,
+                jitCompileMethodQ = reinterpret_cast<bool (*)(void *, void *, void *, bool,
                                                          bool)>(fake_dlsym(jit_lib, "jit_compile_method"));
-                origin_jit_update_options = static_cast<void *(*)(bool *)>(fake_dlsym(jit_lib, "jit_update_options"));
             } else {
                 jitCompileMethod = (bool (*)(void *, void *, void *, bool)) fake_dlsym(jit_lib,
                                                                                        "jit_compile_method");
@@ -94,6 +94,10 @@ extern "C" {
 
             //try disable inline !
             globalJitCompileHandlerAddr = reinterpret_cast<art::jit::JitCompiler **>(fake_dlsym(handle, "_ZN3art3jit3Jit20jit_compiler_handle_E"));
+
+            if (SDK_INT >= ANDROID_Q) {
+                origin_jit_update_options = reinterpret_cast<void (**)(void *)>(fake_dlsym(handle, "_ZN3art3jit3Jit20jit_update_options_E"));
+            }
         }
 
     }
@@ -181,7 +185,20 @@ extern "C" {
 
     //to replace jit_update_option
     void fake_jit_update_options(void* handle) {
+        //do nothing
+        LOGW("android q: art request update compiler options");
         return;
+    }
+
+    bool replaceUpdateCompilerOptionsQ() {
+        if (SDK_INT < ANDROID_Q)
+            return false;
+        if (origin_jit_update_options == nullptr
+            || origin_jit_update_options <= 0
+            || *origin_jit_update_options == nullptr
+            || *origin_jit_update_options <= 0)
+            return false;
+        *origin_jit_update_options = fake_jit_update_options;
     }
 
 }

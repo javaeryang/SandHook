@@ -354,6 +354,7 @@ Java_com_swift_sandhook_SandHook_disableVMInline(JNIEnv *env, jclass type) {
     art::CompilerOptions* compilerOptions = getGlobalCompilerOptions();
     if (compilerOptions == nullptr)
         return JNI_FALSE;
+    replaceUpdateCompilerOptionsQ();
     return static_cast<jboolean>(disableJitInline(compilerOptions));
 }
 
