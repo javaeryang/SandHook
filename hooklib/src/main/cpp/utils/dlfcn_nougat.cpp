@@ -30,6 +30,7 @@
 #include <sys/mman.h>
 #include <elf.h>
 #include <android/log.h>
+#include "../includes/log.h"
 
 #define TAG_NAME    "nougat_dlfcn"
 
@@ -88,8 +89,13 @@ void *fake_dlopen_with_path(const char *libpath, int flags) {
     maps = fopen("/proc/self/maps", "r");
     if (!maps) fatal("failed to open maps");
 
-    while (!found && fgets(buff, sizeof(buff), maps))
-        if (strstr(buff, "r-xp") && strstr(buff, libpath)) found = 1;
+    while (!found && fgets(buff, sizeof(buff), maps)) {
+        if ((strstr(buff, "r-xp") || strstr(buff, "r--p")) && strstr(buff, libpath)) {
+            found = 1;
+            __android_log_print(ANDROID_LOG_ERROR, "dlopen", "%s\n", buff);
+            break;
+        }
+    }
 
     fclose(maps);
 

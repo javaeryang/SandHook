@@ -22,7 +22,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_swift_sandhook_SandHook_initNative(JNIEnv *env, jclass type, jint sdk) {
 
     // TODO
-    SDK_INT = sdk;
+    SDK_INT = ANDROID_P;
     SandHook::CastArtMethod::init(env);
     SandHook::CastCompilerOptions::init(env);
     trampolineManager.init(SandHook::CastArtMethod::entryPointQuickCompiled->getOffset());
