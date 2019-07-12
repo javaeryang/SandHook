@@ -5,6 +5,7 @@ import android.app.Application;
 import android.os.Build;
 import android.util.Log;
 
+import com.swift.sandhook.nativehook.NativeHook;
 import com.swift.sandhook.test.TestClass;
 import com.swift.sandhook.testHookers.ActivityHooker;
 import com.swift.sandhook.testHookers.CtrHook;
@@ -22,12 +23,13 @@ import de.robv.android.xposed.XposedHelpers;
 
 public class MyApp extends Application {
 
-    //if you want test Android Q, please set true, because SDK_INT of Android Q is still 28
+    //if you want test Android Q, please Set true, because SDK_INT of Android Q is still 28
     public final static boolean testAndroidQ = false;
 
     @Override
     public void onCreate() {
         super.onCreate();
+
 
         SandHookConfig.DEBUG = BuildConfig.DEBUG;
 
@@ -55,8 +57,11 @@ public class MyApp extends Application {
             e.printStackTrace();
         }
 
-        //setup for xposed
+        //for xposed compat(no need xposed comapt new)
         XposedCompat.cacheDir = getCacheDir();
+
+
+        //for load xp module(sandvxp)
         XposedCompat.context = this;
         XposedCompat.classLoader = getClassLoader();
         XposedCompat.isFirstApplication= true;

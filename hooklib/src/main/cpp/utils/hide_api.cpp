@@ -6,6 +6,7 @@
 #include "../includes/elf_util.h"
 #include "../includes/log.h"
 #include "../includes/utils.h"
+#include <fcntl.h>
 
 extern int SDK_INT;
 
@@ -34,20 +35,40 @@ extern "C" {
 
     JavaVM* jvm;
 
+    bool fileExits(const char* path) {
+         int fd = open(path, O_RDONLY);
+         if (fd < 0) {
+              return false;
+         }
+         close(fd);
+         return true;
+    }
+
     void initHideApi(JNIEnv* env) {
 
         env->GetJavaVM(&jvm);
 
         if (BYTE_POINT == 8) {
-            art_lib_path = "/system/lib64/libart.so";
-            jit_lib_path = "/system/lib64/libart-compiler.so";
+            if (SDK_INT >= ANDROID_Q && fileExits("/apex/com.android.runtime/lib64/libart.so")) {
+                art_lib_path = "/apex/com.android.runtime/lib64/libart.so";
+                jit_lib_path = "/apex/com.android.runtime/lib64/libart-compiler.so";
+            } else {
+                art_lib_path = "/system/lib64/libart.so";
+                jit_lib_path = "/system/lib64/libart-compiler.so";
+            }
         } else {
-            art_lib_path = "/system/lib/libart.so";
-            jit_lib_path = "/system/lib/libart-compiler.so";
+            if (SDK_INT >= ANDROID_Q && fileExits("/apex/com.android.runtime/lib/libart.so")) {
+                art_lib_path = "/apex/com.android.runtime/lib/libart.so";
+                jit_lib_path = "/apex/com.android.runtime/lib/libart-compiler.so";
+             } else {
+                art_lib_path = "/system/lib/libart.so";
+                jit_lib_path = "/system/lib/libart-compiler.so";
+            }
         }
 
         //init compile
         if (SDK_INT >= ANDROID_N) {
+            globalJitCompileHandlerAddr = reinterpret_cast<art::jit::JitCompiler **>(getSymCompat(art_lib_path, "_ZN3art3jit3Jit20jit_compiler_handle_E"));
             if (SDK_INT >= ANDROID_Q) {
                 jitCompileMethodQ = reinterpret_cast<bool (*)(void *, void *, void *, bool,
                                                          bool)>(getSymCompat(jit_lib_path, "jit_compile_method"));
@@ -58,7 +79,12 @@ extern "C" {
             }
             jitLoad = reinterpret_cast<void* (*)(bool*)>(getSymCompat(jit_lib_path, "jit_load"));
             bool generate_debug_info = false;
-            jitCompilerHandle = (jitLoad)(&generate_debug_info);
+
+            if (jitLoad != nullptr) {
+                jitCompilerHandle = (jitLoad)(&generate_debug_info);
+            } else {
+                jitCompilerHandle = getGlobalJitCompiler();
+            }
 
             if (jitCompilerHandle != nullptr) {
                 art::CompilerOptions* compilerOptions = getCompilerOptions(
@@ -91,10 +117,6 @@ extern "C" {
         addWeakGlobalRef = reinterpret_cast<jobject (*)(JavaVM *, void *,
                                                    void *)>(getSymCompat(art_lib_path, add_weak_ref_sym));
 
-        if (SDK_INT >= ANDROID_N) {
-            globalJitCompileHandlerAddr = reinterpret_cast<art::jit::JitCompiler **>(getSymCompat(art_lib_path, "_ZN3art3jit3Jit20jit_compiler_handle_E"));
-        }
-
         if (SDK_INT >= ANDROID_Q) {
             origin_jit_update_options = reinterpret_cast<void (**)(void *)>(getSymCompat(art_lib_path, "_ZN3art3jit3Jit20jit_update_options_E"));
         }
@@ -117,6 +139,8 @@ extern "C" {
     }
 
     bool compileMethod(void* artMethod, void* thread) {
+        if (jitCompilerHandle == nullptr)
+            return false;
         if (!canCompile()) return false;
         if (SDK_INT >= ANDROID_Q) {
             if (jitCompileMethodQ == nullptr) {
